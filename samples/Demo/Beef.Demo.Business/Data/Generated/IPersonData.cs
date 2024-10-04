@@ -123,6 +123,18 @@ public partial interface IPersonData
     Task<PersonDetail> UpdateDetailAsync(PersonDetail value);
 
     /// <summary>
+    /// Actually validating the AcceptBody parameter generation.
+    /// </summary>
+    /// <param name="person">The Person (see <see cref="Entities.Person"/>).</param>
+    Task Add2Async(Person person);
+
+    /// <summary>
+    /// Actually validating the Custom with Value parameter generation.
+    /// </summary>
+    /// <param name="value">The <see cref="Person"/>.</param>
+    Task Add3Async(Person value);
+
+    /// <summary>
     /// Get Null.
     /// </summary>
     /// <param name="name">The Name.</param>
@@ -190,6 +202,13 @@ public partial interface IPersonData
     /// <param name="id">The <see cref="Person"/> identifier.</param>
     /// <returns>A resultant <see cref="string"/>.</returns>
     Task<Result<string?>> SimulateWorkAsync(Guid id);
+
+    /// <summary>
+    /// Extend Response.
+    /// </summary>
+    /// <param name="name">The Name.</param>
+    /// <returns>A resultant <see cref="string"/>.</returns>
+    Task<Result<string?>> ExtendResponseAsync(string? name);
 }
 
 #pragma warning restore

@@ -189,8 +189,10 @@ parameters: [
         /// Gets or sets the option for how the parameter will be delcared within the Web API Controller.
         /// </summary>
         [JsonPropertyName("webApiFrom")]
-        [CodeGenProperty("WebApi", Title = "The option for how the parameter will be delcared within the Web API Controller.", Options = ["FromQuery", "FromBody", "FromRoute", "FromEntityProperties"],
-            Description = "Defaults to `FromQuery`; unless the parameter `Type` has also been defined as an `Entity` within the code-gen config file then it will default to `FromEntityProperties`. Specifies that the parameter will be declared with corresponding `FromQueryAttribute`, `FromBodyAttribute` or `FromRouteAttribute` for the Web API method. The `FromEntityProperties` will declare all properties of the `Entity` as query parameters.")]
+        [CodeGenProperty("WebApi", Title = "The option for how the parameter will be delcared within the Web API Controller.", Options = ["FromQuery", "FromBody", "FromRoute", "FromEntityProperties", "AcceptsBody"],
+            Description = "Defaults to `FromQuery`; unless the parameter `Type` has also been defined as an `Entity` within the code-gen config file then it will default to `FromEntityProperties`. " +
+            "Specifies that the parameter will be declared with corresponding `FromQueryAttribute`, `FromBodyAttribute` or `FromRouteAttribute` for the Web API method. The `FromEntityProperties` will declare all properties of the `Entity` as query parameters." +
+            "An `AcceptsBody` indicates that the _value_ will be passed in the HTTP Request Body and be handled (JSON deserialized) as a `CoreEx.AspNetCore.WebApis.WebWebApiParam` (default behavior for a `Create` or `Update` operation type).")]
         public string? WebApiFrom { get; set; }
 
         /// <summary>
@@ -222,7 +224,12 @@ parameters: [
         /// <summary>
         /// Indicates whether the parameter is the auto-enabled <see cref="PagingArgs"/>.
         /// </summary>
-        public bool IsPagingArgs { get; set; } 
+        public bool IsPagingArgs { get; set; }
+
+        /// <summary>
+        /// Indicates whether the parameter is the auto-enabled <c>QueryArgs</c>.
+        /// </summary>
+        public bool IsQueryArgs { get; set; }
 
         /// <summary>
         /// Gets the formatted summary text.
@@ -256,7 +263,7 @@ parameters: [
         /// <summary>
         /// Gets the <see cref="WebApiFrom"/> for use in an Agent.
         /// </summary>
-        public string? WebApiAgentFrom => WebApiFrom switch { "FromBody" => "FromBody", "FromEntityProperties" => "FromUriUseProperties", _ => null };
+        public string? WebApiAgentFrom => WebApiFrom switch { "FromBody" => "FromBody", "AcceptsBody" => "AcceptsBody", "FromEntityProperties" => "FromUriUseProperties", _ => null };
 
         /// <summary>
         /// Gets the parameter argument using the specified converter.
@@ -294,7 +301,7 @@ parameters: [
                 Nullable = true;
             }
 
-            RelatedEntity = Root!.Entities!.FirstOrDefault(x => x.Name == Type);
+            RelatedEntity = Root?.Entities!.FirstOrDefault(x => x.Name == Type);
 
             PrivateName = DefaultWhereNull(PrivateName, () => pc == null ? StringConverter.ToPrivateCase(Name) : pc.Name);
             ArgumentName = DefaultWhereNull(ArgumentName, () => pc == null ? StringConverter.ToCamelCase(Name) : pc.ArgumentName);
@@ -304,7 +311,7 @@ parameters: [
             DataConverter = DefaultWhereNull(DataConverter, () => pc?.DataConverter);
             DataConverter = PropertyConfig.ReformatDataConverter(DataConverter, Type, RefDataType, null).DataConverter;
             WebApiFrom = DefaultWhereNull(WebApiFrom, () => RelatedEntity == null ? "FromQuery" : "FromEntityProperties");
-            ValidationFramework = DefaultWhereNull(ValidationFramework, () => Parent!.ValidationFramework);
+            ValidationFramework = DefaultWhereNull(ValidationFramework, () => Parent?.ValidationFramework);
 
             RefDataType = DefaultWhereNull(RefDataType, () => pc?.RefDataType);
             if (Type!.StartsWith("^"))
@@ -339,7 +346,7 @@ parameters: [
                 if (string.IsNullOrEmpty(RefDataType) && !string.IsNullOrEmpty(pc?.Text))
                     return pc.Text;
 
-                if (IsValueArg || IsPagingArgs || Type == "ChangeLog")
+                if (IsValueArg || IsPagingArgs || IsQueryArgs || Type == "ChangeLog")
                     return $"{StringConverter.ToSeeComments(Type)}";
 
                 if (RelatedEntity != null)
@@ -350,6 +357,13 @@ parameters: [
 
                 return StringConverter.ToSentenceCase(Name);
             });
+
+            if (WebApiFrom == "AcceptsBody")
+            {
+                IsValueArg = true;
+                if (string.IsNullOrEmpty(Parent!.ValueType))
+                    Parent.ValueType = Type;
+            }
 
             GrpcType = DefaultWhereNull(GrpcType, () => PropertyConfig.InferGrpcType(string.IsNullOrEmpty(RefDataType) ? Type! : RefDataType!, RefDataType, RefDataList));
             GrpcMapper = DotNet.SystemTypes.Contains(Type) || RefDataType != null ? null : Type;

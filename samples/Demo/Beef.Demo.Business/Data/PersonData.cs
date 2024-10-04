@@ -14,7 +14,7 @@ namespace Beef.Demo.Business.Data
         {
             p.ParamWithWildcard(args?.FirstName, "FirstName")
              .ParamWithWildcard(args?.LastName, "LastName")
-             .TableValuedParamWith(args?.Genders, "GenderIds", () => _db.CreateTableValuedParameter(args!.Genders!.ToIdList<Guid>()));
+             .JsonParamWith(args?.Genders, "GenderIds", () => args!.Genders!.ToIdList<Guid>());
         }
 
         private IQueryable<EfModel.Person> GetByArgsWithEfOnQuery(IQueryable<EfModel.Person> q, PersonArgs? args)
@@ -154,5 +154,19 @@ namespace Beef.Demo.Business.Data
         }
 
         Task<Result<string?>> SimulateWorkOnImplementationAsync(Guid id) => Result.Go<string?>($"hello {id}").AsTask();
+
+        private static Task Add2OnImplementationAsync(Person value)
+        {
+            if (value == null) throw new ArgumentNullException(nameof(value));
+            return Task.CompletedTask;
+        }
+
+        private static Task Add3OnImplementationAsync(Person value)
+        {
+            if (value == null) throw new ArgumentNullException(nameof(value));
+            return Task.CompletedTask;
+        }
+
+        private Task<Result<string?>> ExtendResponseOnImplementationAsync(string? name) => name is null ? Result<string?>.Fail("Name is needed dude!").AsTask() : Result.Ok<string?>(name).AsTask();
     }
 }

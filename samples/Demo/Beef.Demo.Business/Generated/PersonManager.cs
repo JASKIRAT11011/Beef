@@ -92,6 +92,16 @@ public partial class PersonManager : IPersonManager
     private Func<PersonDetail, Guid, Task>? _updateDetailOnBeforeAsync;
     private Func<PersonDetail, Guid, Task>? _updateDetailOnAfterAsync;
 
+    private Func<Person, Task>? _add2OnPreValidateAsync;
+    private Action<MultiValidator, Person>? _add2OnValidate;
+    private Func<Person, Task>? _add2OnBeforeAsync;
+    private Func<Task>? _add2OnAfterAsync;
+
+    private Func<Person, Task>? _add3OnPreValidateAsync;
+    private Action<MultiValidator, Person>? _add3OnValidate;
+    private Func<Person, Task>? _add3OnBeforeAsync;
+    private Func<Task>? _add3OnAfterAsync;
+
     private Func<Task>? _dataSvcCustomOnPreValidateAsync;
     private Action<MultiValidator>? _dataSvcCustomOnValidate;
     private Func<Task>? _dataSvcCustomOnBeforeAsync;
@@ -156,6 +166,11 @@ public partial class PersonManager : IPersonManager
     private Action<MultiValidator, Guid>? _simulateWorkOnValidate;
     private Func<Guid, Task<Result>>? _simulateWorkOnBeforeAsync;
     private Func<string?, Guid, Task<Result>>? _simulateWorkOnAfterAsync;
+
+    private Func<string?, Task<Result>>? _extendResponseOnPreValidateAsync;
+    private Action<MultiValidator, string?>? _extendResponseOnValidate;
+    private Func<string?, Task<Result>>? _extendResponseOnBeforeAsync;
+    private Func<string?, string?, Task<Result>>? _extendResponseOnAfterAsync;
 
     #endregion
 
@@ -424,6 +439,35 @@ public partial class PersonManager : IPersonManager
     }, InvokerArgs.Unspecified);
 
     /// <inheritdoc/>
+    public Task Add2Async(Person person) => ManagerInvoker.Current.InvokeAsync(this, async (_, ct) =>
+    {
+        Cleaner.CleanUp(person.Required());
+        await Invoker.InvokeAsync(_add2OnPreValidateAsync?.Invoke(person)).ConfigureAwait(false);
+        await MultiValidator.Create()
+            .Additional(mv => _add2OnValidate?.Invoke(mv, person))
+            .ValidateAsync(true).ConfigureAwait(false);
+
+        await Invoker.InvokeAsync(_add2OnBeforeAsync?.Invoke(person)).ConfigureAwait(false);
+        await _dataService.Add2Async(person).ConfigureAwait(false);
+        await Invoker.InvokeAsync(_add2OnAfterAsync?.Invoke()).ConfigureAwait(false);
+    }, InvokerArgs.Unspecified);
+
+    /// <inheritdoc/>
+    public Task Add3Async(Person value) => ManagerInvoker.Current.InvokeAsync(this, async (_, ct) =>
+    {
+        Cleaner.CleanUp(value.Required());
+        await Invoker.InvokeAsync(_add3OnPreValidateAsync?.Invoke(value)).ConfigureAwait(false);
+        await MultiValidator.Create()
+            .Add(value.Validate().Configure(vc => vc.Mandatory().Entity().With<PersonValidator>()))
+            .Additional(mv => _add3OnValidate?.Invoke(mv, value))
+            .ValidateAsync(true).ConfigureAwait(false);
+
+        await Invoker.InvokeAsync(_add3OnBeforeAsync?.Invoke(value)).ConfigureAwait(false);
+        await _dataService.Add3Async(value).ConfigureAwait(false);
+        await Invoker.InvokeAsync(_add3OnAfterAsync?.Invoke()).ConfigureAwait(false);
+    }, InvokerArgs.Unspecified);
+
+    /// <inheritdoc/>
     public Task<int> DataSvcCustomAsync() => ManagerInvoker.Current.InvokeAsync(this, async (_, ct) =>
     {
         await Invoker.InvokeAsync(_dataSvcCustomOnPreValidateAsync?.Invoke()).ConfigureAwait(false);
@@ -633,6 +677,20 @@ public partial class PersonManager : IPersonManager
                      .ThenAsync(() => _simulateWorkOnBeforeAsync?.Invoke(id) ?? Result.SuccessTask)
                      .ThenAsAsync(() => _dataService.SimulateWorkAsync(id))
                      .ThenAsync(r => _simulateWorkOnAfterAsync?.Invoke(r, id) ?? Result.SuccessTask)
+                     .Then(r => Cleaner.Clean(r));
+    }, InvokerArgs.Unspecified);
+
+    /// <inheritdoc/>
+    public Task<Result<string?>> ExtendResponseAsync(string? name) => ManagerInvoker.Current.InvokeAsync(this, (_, ct) =>
+    {
+        return Result.Go()
+                     .Then(() => Cleaner.CleanUp(name))
+                     .ThenAsync(() => _extendResponseOnPreValidateAsync?.Invoke(name) ?? Result.SuccessTask)
+                     .ValidateAsync(() => MultiValidator.Create()
+                         .Additional(mv => _extendResponseOnValidate?.Invoke(mv, name)), cancellationToken: ct)
+                     .ThenAsync(() => _extendResponseOnBeforeAsync?.Invoke(name) ?? Result.SuccessTask)
+                     .ThenAsAsync(() => _dataService.ExtendResponseAsync(name))
+                     .ThenAsync(r => _extendResponseOnAfterAsync?.Invoke(r, name) ?? Result.SuccessTask)
                      .Then(r => Cleaner.Clean(r));
     }, InvokerArgs.Unspecified);
 }

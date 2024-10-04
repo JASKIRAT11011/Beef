@@ -1306,8 +1306,34 @@ namespace Beef.Demo.Test
             {
                 AgentTester.Test<PersonAgent, string>()
                     .ExpectStatusCode(HttpStatusCode.OK)
+                    .ExpectEvent("Work", "Simulated")
                     .Run(a => a.SimulateWorkAsync(Guid.NewGuid()));
             }
+        }
+
+        #endregion
+
+        #region ExtendResponse
+
+        [Test, TestSetUp]
+        public void J110_ExtendResponse_Error()
+        {
+            AgentTester.Test<PersonAgent>()
+                .ExpectStatusCode(HttpStatusCode.BadRequest)
+                .ExpectError("Name is needed dude!")
+                .Run(a => a.ExtendResponseAsync(null));
+        }
+
+        [Test, TestSetUp]
+        public void J120_ExtendResponse_Success()
+        {
+            var resp = AgentTester.Test<PersonAgent, string>()
+                .ExpectStatusCode(HttpStatusCode.OK)
+                .ExpectValue("Sweet!")
+                .Run(a => a.ExtendResponseAsync("Sweet!"));
+
+            if (resp.Response.Headers.TryGetValues("X-Beef-Test", out var values))
+                Assert.That(values, Is.EquivalentTo(new string[] { "123" }));
         }
 
         #endregion

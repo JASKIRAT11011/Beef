@@ -132,6 +132,18 @@ public partial interface IPersonManager
     Task AddAsync(Person person);
 
     /// <summary>
+    /// Actually validating the AcceptBody parameter generation.
+    /// </summary>
+    /// <param name="person">The Person (see <see cref="Entities.Person"/>).</param>
+    Task Add2Async(Person person);
+
+    /// <summary>
+    /// Actually validating the Custom with Value parameter generation.
+    /// </summary>
+    /// <param name="value">The <see cref="Person"/>.</param>
+    Task Add3Async(Person value);
+
+    /// <summary>
     /// Validate a DataSvc Custom generation.
     /// </summary>
     /// <returns>A resultant <see cref="int"/>.</returns>
@@ -230,6 +242,13 @@ public partial interface IPersonManager
     /// <param name="id">The <see cref="Person"/> identifier.</param>
     /// <returns>A resultant <see cref="string"/>.</returns>
     Task<Result<string?>> SimulateWorkAsync(Guid id);
+
+    /// <summary>
+    /// Extend Response.
+    /// </summary>
+    /// <param name="name">The Name.</param>
+    /// <returns>A resultant <see cref="string"/>.</returns>
+    Task<Result<string?>> ExtendResponseAsync(string? name);
 }
 
 #pragma warning restore

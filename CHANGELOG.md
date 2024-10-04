@@ -2,6 +2,25 @@
 
 Represents the **NuGet** versions.
 
+## v5.16.0
+- *Enhancement:* Database code-generation defaults to the use of [JSON](https://learn.microsoft.com/en-us/sql/relational-databases/json/json-data-sql-server)-serialized parameters versus UDT/TVP to minimize the need for additional database objects; specifically [User-Defined Types](https://learn.microsoft.com/en-us/sql/t-sql/statements/create-type-transact-sql) (UDT).
+  - A new `CollectionType` property has been added to the code-generation configuration for query-based collection passing; supports `JSON` (default) and `UDT` (previous) values. Note that for JSON passing a `NVARCHAR(MAX)` type should be used.
+  - A merge for a sub-collection would previously require a `UDT` to be created; this is now handled using JSON serialization, unless explicitly required (example YAML `udt: true, tvp: WorkHistory`).
+- *Enhancement:* The out-of-the-box _Beef_ `Type` schema objects (`udtBigIntList.sql`, `udtDateTimeList.sql`, `udtIntList.sql`, `udtNVarCharList.sql` and `udtUniqueIdentifierList.sql`) have been removed and will not be automatically included. Where required, these should be manually added to the database project and managed accordingly; use this [`create-beef-user-defined-types.sql`](./tools/Beef.Database.SqlServer/Migrations/create-beef-user-defined-types.sql) migration script to add.
+- *Enhancement:* All code-generated SQL objects have been updated to support replacement, for example `CREATE OR ALTER` versus previous `CREATE`; this potentially minimizes the need to drop and recreate each migration. This _DbEx_ behavior is predicated on not having any `Type` (UDT) schema objects which do not support replacement. It is also therefore recommended that all non-generated schema objects support replacement as they all have to adhere to this pattern to avoid unncessary dropping.
+
+## v5.15.2
+- *Fixed:* Fixed the event value publish code-generation by enabling an override using `Operation.EventValue` where applicable (i.e. no response).
+
+## v5.15.1
+- *Fixed:* Added option `AcceptsBody` to `Parameter.WebApiFrom` to ensure consistent behaviour with `Create` and `Update` operation types in terms of how a body value is handled within the API Controller.
+- *Fixed:* Fixed the `value` parameter inference where operation type is `Custom` and the `ValueType` is specified; ensures operation is generated correctly.
+- *Fixed:* Fixed the Agent code-generation to enable optional operation parameters where applicable.
+
+## v5.15.0
+- *Enhancement:* Added `Operation.Query` boolean to enable support for OData-like query syntax. This leverages the underlying `CoreEx.Data.Querying` (`v3.25.1+`) capabilities to enable. The `Operation.Behavior` has also been extended to support a '`Q`'uery as a shorthand to enable a query-based operation. _Note:_ this is an **awesome** new capability.
+- *Enhancement:* Updated the `DatabaseName`, `EntityFrameworkName`, `CosmosName`, `ODataName` and `HttpAgentName` to support both `Type` (existing) and optional `Name` (new). This uses the `Type^Name` syntax supported for other properties with similar purpose. The properties have also had the `Name` suffix renamed to `Type` as this more accurately reflects the property intent (existing names will continue to work with a corresponding warning during code-generation).
+
 ## v5.14.2
 - *Fixed:* Fixed the data model code-generation to output the `PartitionKey` where specified.
 - *Fixed:* Fixed the code-generated `PartitionKey` to be a nullable string. 

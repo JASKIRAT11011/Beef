@@ -14,7 +14,7 @@ The pluggable nature of an [`IEventPublisher`](https://github.com/Avanade/CoreEx
 
 ## Previously generated capabilities
 
-Within [Step 1](./Employee-DB.md) the transactional outbox capabilities, both database and .NET, were generated and included into the solution when performing the [Event outbox](./Employee-DB.md#Event%20outbox).
+Within [Step 2](./2-Employee-DB.md) the transactional outbox capabilities, both database and .NET, were generated and included into the solution when performing the [Event outbox](./2-Employee-DB.md#event-outbox).
 
 There were two tables added to the database [`Outbox.EventOutbox`](../MyEf.Hr.Database/Migrations/20221207-004320-02-create-outbox-eventoutbox-table.sql) and [`Outbox.EventOutboxData`](../MyEf.Hr.Database/Migrations/20221207-004320-03-create-outbox-eventoutboxdata-table.sql) via the corresponding generated migration scripts; these tables provide the underlying transactional persistence.
 
@@ -22,24 +22,23 @@ There were two tables added to the database [`Outbox.EventOutbox`](../MyEf.Hr.Da
 
 ### Enqueue
 
-The following are the key generated Outbox enqueue artefacts; performing the transactional persistence. 
+The following are the key generated Outbox enqueue artefacts; performing the transactional persistence.
 
 Type | Name | Description
 -|-|-
 Stored procedure | [spEventOutboxEnqueue](../MyEf.Hr.Database/Schema/Outbox/Stored%20Procedures/Generated/spEventOutboxEnqueue.sql) | The stored procedure used to _enqueue_ zero or more events into the database.
-Used-defined table type | [udtEventOutboxList](../MyEf.Hr.Database/Schema/Outbox/Types/User-Defined%20Table%20Types/Generated/udtEventOutboxList.sql) | The type used during _enqueue_ as the events collection being passed. By design this is the database representation (column from/to property) of the _CoreEx_ .NET [EventData](https://github.com/Avanade/CoreEx/blob/main/src/CoreEx/Events/EventData.cs) class.
-Class | [EventOutboxEnqueue](../MyEf.Hr.Business/Data/Generated/EventOutboxEnqueue.cs) | Provides the [`IEventSender`](https://github.com/Avanade/CoreEx/blob/main/src/CoreEx/Events/IEventSender.cs) implementation (inheriting from [EventOutboxEnqueueBase](https://github.com/Avanade/CoreEx/blob/main/src/CoreEx.Database.SqlServer/Outbox/EventOutboxEnqueueBase.cs)) to perform the _enqueue_ using the `spEventOutboxEnqueue` stored procedure.
+.NET Class | [EventOutboxEnqueue](../MyEf.Hr.Business/Data/Generated/EventOutboxEnqueue.cs) | Provides the [`IEventSender`](https://github.com/Avanade/CoreEx/blob/main/src/CoreEx/Events/IEventSender.cs) implementation (inheriting from [EventOutboxEnqueueBase](https://github.com/Avanade/CoreEx/blob/main/src/CoreEx.Database.SqlServer/Outbox/EventOutboxEnqueueBase.cs)) to perform the _enqueue_ using the `spEventOutboxEnqueue` stored procedure.
 
 <br/>
 
 ### Dequeue
 
-The following are the key generated Outbox dequeue artefacts. 
+The following are the key generated Outbox dequeue artefacts.
 
 Type | Name | Description
 -|-|-
 Stored procedure | [spEventOutboxDequeue](../MyEf.Hr.Database/Schema/Outbox/Stored%20Procedures/Generated/spEventOutboxDequeue.sql) | The stored procedure used to _dequeue_ zero or more events from the database.
-Class | [EventOutboxDequeue](../MyEf.Hr.Business/Data/Generated/EventOutboxDequeue.cs) | Provides the _dequeue_ implementation (inheriting from [EventOutboxDequeueBase](https://github.com/Avanade/CoreEx/blob/main/src/CoreEx.Database.SqlServer/Outbox/EventOutboxDequeueBase.cs)) using the `spEventOutboxDequeue` stored procedure. This class is then also responsible for sending the dequeued events (via an [`IEventSender`](https://github.com/Avanade/CoreEx/blob/main/src/CoreEx/Events/IEventSender.cs)) to the final messaging subsystem. On successful send, the dequeued events will be committed (within Outbox) as sent, guaranteeing as-least once messaging semantics.
+.NET Class | [EventOutboxDequeue](../MyEf.Hr.Business/Data/Generated/EventOutboxDequeue.cs) | Provides the _dequeue_ implementation (inheriting from [EventOutboxDequeueBase](https://github.com/Avanade/CoreEx/blob/main/src/CoreEx.Database.SqlServer/Outbox/EventOutboxDequeueBase.cs)) using the `spEventOutboxDequeue` stored procedure. This class is then also responsible for sending the dequeued events (via an [`IEventSender`](https://github.com/Avanade/CoreEx/blob/main/src/CoreEx/Events/IEventSender.cs)) to the final messaging subsystem. On successful send, the dequeued events will be committed (within Outbox) as sent, guaranteeing as-least once messaging semantics.
 
 <br/>
 
@@ -58,7 +57,7 @@ public Task<Result<Employee>> TerminateAsync(TerminationDetail value, Guid id) =
                  .Then(r => _events.PublishValueEvent(r, new Uri($"myef/hr/employee/{r.Id}", riKind.Relative), $"MyEf.Hr.Employee", "Terminated"))
                  .Then(r => _cache.SetValue(r));
 }, new InvokerArgs { IncludeTransactionScope = true, EventPublisher = _events });
-``` 
+```
 
 <br/>
 
@@ -75,7 +74,7 @@ services.AddNullEventPublisher();
 // Add transactional event outbox services.
 services.AddScoped<IEventSender>(sp =>
 {
-    var eoe = new EventOutboxEnqueue(sp.GetRequiredService<IDatabase>(), p.GetRequiredService<ILogger<EventOutboxEnqueue>>());
+    var eoe = new EventOutboxEnqueue(sp.GetRequiredService<IDatabase>(), sp.GetRequiredService<ILogger<EventOutboxEnqueue>>());
     //eoe.SetPrimaryEventSender(/* the primary sender instance; i.e. service bus */); // This is optional.
     return eoe;
 });
@@ -110,11 +109,11 @@ services.AddScoped<IEventSender, EventOutboxEnqueue>();
 
 ## Unit testing
 
-Back in [Step 3](./Employee-Test.md) unit testing of the API surface was introduced. Within these tests there was an `ExpectEvent` and `ExpectEventValue` that verified that a corresponding event was being published and sent; even though we had configured the API with a `NullEventPublisher`.
+Back in [Step 4](./4-Employee-Test.md) unit testing of the API surface was introduced. Within these tests there was an `ExpectEvent` and `ExpectEventValue` that verified that a corresponding event was being published and sent; even though we had configured the API with a `NullEventPublisher`.
 
-Hang on! How was an event verified where configured to discard? 
+Hang on! How was an event verified where configured to discard?
 
-The [`FixtureSetup`](../MyEf.Hr.Test/Apis/FixtureSetup.cs) leveraged a _UnitTestEx_ [TestSetUp](https://github.com/Avanade/UnitTestEx/blob/main/src/UnitTestEx/TestSetUp.cs) capability, being the `ExpectedEventsEnabled` property. Where enabled the `IEventPublisher` will be automatically replaced at runtime with the [`ExpectedEventPublisher`](https://github.com/Avanade/UnitTestEx/blob/main/src/UnitTestEx/Expectations/ExpectedEventPublisher.cs) that is used by the `ExpectEvent` to verify the expected events were sent. 
+The [`FixtureSetup`](../MyEf.Hr.Test/Apis/FixtureSetup.cs) leveraged a _UnitTestEx_ [TestSetUp](https://github.com/Avanade/UnitTestEx/blob/main/src/UnitTestEx/TestSetUp.cs) capability, being the `ExpectedEventsEnabled` property. Where enabled the `IEventPublisher` will be automatically replaced at runtime with the [`ExpectedEventPublisher`](https://github.com/Avanade/UnitTestEx/blob/main/src/UnitTestEx/Expectations/ExpectedEventPublisher.cs) that is used by the `ExpectEvent` to verify the expected events were sent.
 
 Therefore, _no_ events will be sent to any external eventing/messaging system during unit testing. This has the advantage of decoupling the test execution from the dependent messaging subsystem, minimizing the need for any additional infrastructure to enable the unit tests.
 
